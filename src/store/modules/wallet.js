@@ -499,8 +499,11 @@ export default {
     getFrozenUTXOs (state) {
       return state.frozenUTXOs
     },
-    getUTXO (state, id) {
+    getUTXO: (state) => (id) => {
       return state.utxos[id]
+    },
+    isUTXO: (state) => (id) => {
+      return (id in state.utxos)
     },
     getFrozenUTXO: (state) => (id) => {
       return state.frozenUTXOs[id]
