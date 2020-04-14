@@ -33,26 +33,30 @@
 <script>
 import { mapActions, mapGetters } from 'vuex'
 import { caldIdFromParts } from '../../utils/wallet'
+import { sentTransactionFailureNotify } from '../../utils/notifications'
 
 export default {
   props: ['address', 'index'],
   methods: {
     ...mapActions({
-      deleteMessage: 'chats/deleteMessage'
+      deleteMessage: 'chats/deleteMessage',
+      forwardTransaction: 'wallet/forwardTransaction',
+      getFee: 'wallet/getFee'
     }),
     ...mapGetters({
       getRelayClient: 'relayClient/getClient',
       getToken: 'relayClient/getToken',
       getMessage: 'chats/getMessage',
       isUTXO: 'wallet/isUTXO',
-      getUTXO: 'wallet/getUTXO'
+      getUTXO: 'wallet/getUTXO',
+      getChangeAddresses: 'wallet/getChangeAddresses'
     }),
-    deleteMessageBoth () {
+    async deleteMessageBoth () {
       // TODO: Move this into wallet API
       // TODO: More private
       // Get utxos attached to message
       const outpoints = this.getMessage()(this.address, this.index).outpoints
-      const utxos = outpoints.reduce(function (allOutputs, currentOutpoints) {
+      const filteredUtxos = outpoints.reduce(function (allOutputs, currentOutpoints) {
         const newOutputs = currentOutpoints.vouts.reduce(function (outputs, currentVout) {
           const id = caldIdFromParts(currentOutpoints.stampTx.hash, currentVout)
           outputs.push(id)
@@ -60,11 +64,28 @@ export default {
         }, [])
         let newTotal = allOutputs.concat(newOutputs)
         return newTotal
-      }, [])
+      }, []).filter((id) => this.isUTXO()(id))
 
-      // Filter spent utxos
-      const filteredUtxos = utxos.filter((id) => this.isUTXO()(id)).map((id) => this.getUTXO()(id))
-      console.log(filteredUtxos)
+      try {
+        if (filteredUtxos.length) {
+          // Send utxos to a change address
+          const changeAddresses = Object.keys(this.getChangeAddresses())
+          const changeAddress = changeAddresses[changeAddresses.length * Math.random() << 0]
+          const feePerByte = await this.getFee()
+          var { transaction, usedIDs } = await this.forwardTransaction({ inputIds: filteredUtxos, addr: changeAddress, feePerByte })
+          const txHex = transaction.toString()
+          const electrumHandler = this.getClient()
+          await electrumHandler.methods.blockchain_transaction_broadcast(txHex)
+        }
+      } catch (err) {
+        sentTransactionFailureNotify(transaction)
+        console.error(err)
+        // Unfreeze UTXOs if stealth tx broadcast fails
+        usedIDs.forEach(id => {
+          this.unfreezeUTXO(id)
+        })
+        return
+      }
 
       this.deleteMessage({ addr: this.address, id: this.index })
       const client = this.getRelayClient()
