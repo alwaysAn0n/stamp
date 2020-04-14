@@ -305,6 +305,41 @@ export default {
         ecl.methods.blockchain_scripthash_subscribe(digestHexReversed)
       }))
     },
+    forwardTransaction ({ commit, getters }, { inputIds, addr, feePerByte }) {
+      let transaction = new cashlib.Transaction()
+
+      const utxoSetToUse = inputIds.map((id) => getters['getUTXO'](id))
+      const addresses = getters['getAllAddresses']
+      let satoshis = 0
+      let signingKeys = []
+
+      for (const utxo of utxoSetToUse) {
+        const addr = utxo.address
+        utxo['script'] = cashlib.Script.buildPublicKeyHashOut(addr).toHex()
+        // Grab private key
+        if (utxo.type === 'p2pkh') {
+          signingKeys.push(addresses[addr].privKey)
+        } else {
+          signingKeys.push(utxo.privKey)
+        }
+        transaction = transaction.from(utxo)
+        satoshis += utxo.satoshis
+      }
+
+      const standardUtxoSize = 35 // 1 extra byte because we don't want to underrun
+      const txnSize = transaction._estimateSize() + standardUtxoSize
+      const fees = txnSize * feePerByte
+      console.log(fees)
+      console.log(satoshis)
+
+      transaction.to(addr, satoshis - fees)
+      inputIds.map(id => commit('freezeUTXO', id))
+
+      // Sign transaction
+      transaction = transaction.sign(signingKeys)
+
+      return { transaction, usedIDs: inputIds }
+    },
     constructTransaction ({ state, commit, getters }, { outputs, feePerByte, exactOutputs = false }) {
       const standardUtxoSize = 35 // 1 extra byte because we don't want to underrun
       const standardInputSize = 175 // A few extra bytes
@@ -447,7 +482,7 @@ export default {
       console.log(transaction)
       return { transaction, usedIDs: usedUtxos.map(utxo => calcId(utxo)) }
     },
-    async getFee ({ commit, getters, rootGetters }) {
+    getFee ({ commit, getters, rootGetters }) {
       return 2
     }
   },
