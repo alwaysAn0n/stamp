@@ -9,7 +9,7 @@
     </q-card-section>
 
     <q-card-section>
-            <span class="q-ml-sm">Are you sure you want to delete this message? This will delete the message from the relay server too.</span>
+      <span class="q-ml-sm">Are you sure you want to delete this message? This will delete the message from the relay server too.</span>
     </q-card-section>
 
     <q-card-actions align="right">
@@ -41,19 +41,23 @@ export default {
     ...mapActions({
       deleteMessage: 'chats/deleteMessage',
       forwardTransaction: 'wallet/forwardTransaction',
-      getFee: 'wallet/getFee'
+      getFee: 'wallet/getFee',
+      unfreezeUTXO: 'wallet/unfreezeUTXO'
     }),
     ...mapGetters({
       getRelayClient: 'relayClient/getClient',
+      getElectrumClient: 'electrumHandler/getClient',
       getToken: 'relayClient/getToken',
       getMessage: 'chats/getMessage',
       isUTXO: 'wallet/isUTXO',
       getUTXO: 'wallet/getUTXO',
-      getChangeAddresses: 'wallet/getChangeAddresses'
+      getChangeAddresses: 'wallet/getChangeAddresses',
+      getMyAddressStr: 'wallet/getMyAddressStr'
     }),
     async deleteMessageBoth () {
       // TODO: Move this into wallet API
       // TODO: More private
+
       // Get utxos attached to message
       const outpoints = this.getMessage()(this.address, this.index).outpoints
       const filteredUtxos = outpoints.reduce(function (allOutputs, currentOutpoints) {
@@ -74,7 +78,7 @@ export default {
           const feePerByte = await this.getFee()
           var { transaction, usedIDs } = await this.forwardTransaction({ inputIds: filteredUtxos, addr: changeAddress, feePerByte })
           const txHex = transaction.toString()
-          const electrumHandler = this.getClient()
+          const electrumHandler = this.getElectrumClient()
           await electrumHandler.methods.blockchain_transaction_broadcast(txHex)
         }
       } catch (err) {
@@ -87,11 +91,13 @@ export default {
         return
       }
 
+      // Delete message from relay server
       this.deleteMessage({ addr: this.address, id: this.index })
       const client = this.getRelayClient()
       const token = this.getToken()
       try {
-        client.deleteMessage(this.address, token, this.index)
+        const myAddr = this.getMyAddressStr()
+        client.deleteMessage(myAddr, token, this.index)
       } catch (err) {
         console.error(err)
         if (err.response) {
