@@ -329,8 +329,6 @@ export default {
       const standardUtxoSize = 35 // 1 extra byte because we don't want to underrun
       const txnSize = transaction._estimateSize() + standardUtxoSize
       const fees = txnSize * feePerByte
-      console.log(fees)
-      console.log(satoshis)
 
       transaction.to(addr, satoshis - fees)
       inputIds.map(id => commit('freezeUTXO', id))
