@@ -6,6 +6,7 @@ import pop from '../pop/index'
 import store from '../store/index'
 import { pingTimeout, relayReconnectInterval } from '../utils/constants'
 import VCard from 'vcf'
+import assert from 'assert'
 
 const WebSocket = window.require('ws')
 
@@ -151,8 +152,8 @@ class RelayClient {
   }
 
   async getRawPayload (addr, token, digest) {
+    assert(typeof digest === 'string')
     let url = `${this.httpScheme}://${this.url}/payloads/${addr}`
-    let hexDigest = Array.prototype.map.call(digest, x => ('00' + x.toString(16)).slice(-2)).join('')
     let response = await axios({
       method: 'get',
       url,
@@ -160,7 +161,7 @@ class RelayClient {
         'Authorization': token
       },
       params: {
-        digest: hexDigest
+        digest
       },
       responseType: 'arraybuffer'
     })
@@ -174,8 +175,8 @@ class RelayClient {
   }
 
   async deleteMessage (addr, token, digest) {
+    assert(typeof digest === 'string')
     let url = `${this.httpScheme}://${this.url}/messages/${addr}`
-    let hexDigest = Array.prototype.map.call(digest, x => ('00' + x.toString(16)).slice(-2)).join('')
     await axios({
       method: 'delete',
       url,
@@ -183,7 +184,7 @@ class RelayClient {
         'Authorization': token
       },
       params: {
-        digest: hexDigest
+        digest
       }
     })
   }
