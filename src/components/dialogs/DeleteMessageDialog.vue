@@ -9,7 +9,7 @@
     </q-card-section>
 
     <q-card-section>
-      <span class="q-ml-sm">Are you sure you want to delete this message? This will delete the message from the relay server too.</span>
+      <span class="q-ml-sm">Are you sure you want to delete this message?</span>
     </q-card-section>
 
     <q-card-actions align="right">
