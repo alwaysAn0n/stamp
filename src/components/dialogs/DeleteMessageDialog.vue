@@ -6,9 +6,6 @@
         color="red"
         text-color="white"
       />
-    </q-card-section>
-
-    <q-card-section>
       <span class="q-ml-sm">Are you sure you want to delete this message?</span>
     </q-card-section>
 
